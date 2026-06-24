@@ -1,0 +1,115 @@
+Bootstrap: docker
+From: rootproject/root:6.34.00-ubuntu24.04
+
+%labels
+  Description "Artemis (master) on ROOT 6.34.00 / Ubuntu 24.04"
+
+%environment
+  # ROOTSYS and PATH come from the base image's Docker ENV, and ROOT's libraries
+  # are on the loader path via /etc/ld.so.conf (/opt/root/lib), so ROOT and
+  # artemis run without any extra setup here. We deliberately do NOT source
+  # $ROOTSYS/bin/thisroot.sh: Apptainer parses %environment with a Go-based shell
+  # that chokes on the zsh-only syntax in thisroot.sh (e.g. `${(%):-%N}`),
+  # printing a parse error on every exec/shell/run.
+
+  export ARTEMIS_HOME=/opt/artemis
+  export PATH=$ARTEMIS_HOME/bin:$PATH
+  export LD_LIBRARY_PATH=/usr/local/lib:$ARTEMIS_HOME/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
+
+  if [ -f "$ARTEMIS_HOME/bin/thisartemis.sh" ]; then
+    . "$ARTEMIS_HOME/bin/thisartemis.sh"
+  fi
+
+  # Prevent X11 shared memory errors in VNC / remote display environments
+  export QT_X11_NO_MITSHM=1
+
+%post
+  set -eux
+  export DEBIAN_FRONTEND=noninteractive
+
+  apt-get update && apt-get install -y --no-install-recommends \
+    git ca-certificates pkg-config \
+    cmake ninja-build build-essential \
+    libssl-dev zlib1g-dev libxml2-dev
+  rm -rf /var/lib/apt/lists/*
+
+  BUILDROOT=/opt/build
+  mkdir -p "$BUILDROOT"
+
+  # ---- yaml-cpp 0.7.0 (shared library) ----
+  git clone --branch yaml-cpp-0.7.0 --depth 1 \
+    https://github.com/jbeder/yaml-cpp.git "$BUILDROOT/yaml-cpp"
+
+  cmake -S "$BUILDROOT/yaml-cpp" -B "$BUILDROOT/yaml-cpp-build" -G Ninja \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_INSTALL_PREFIX=/usr/local \
+    -DYAML_BUILD_SHARED_LIBS=ON \
+    -DBUILD_TESTING=OFF
+  cmake --build "$BUILDROOT/yaml-cpp-build" -j"$(nproc)"
+  cmake --install "$BUILDROOT/yaml-cpp-build"
+  ldconfig
+
+  # Locate the cmake config dir (may be lib/cmake, share/cmake, or lib64/cmake
+  # depending on the build/platform)
+  YAML_CMAKE_DIR=""
+  for D in \
+    /usr/local/lib/cmake/yaml-cpp \
+    /usr/local/share/cmake/yaml-cpp \
+    /usr/local/lib64/cmake/yaml-cpp; do
+    [ -d "$D" ] && YAML_CMAKE_DIR="$D" && break
+  done
+  echo "yaml-cpp cmake dir: $YAML_CMAKE_DIR"
+
+  # Locate the dir actually containing the shared library (lib vs lib64)
+  YAML_LIBDIR=/usr/local/lib
+  for D in /usr/local/lib /usr/local/lib64; do
+    [ -e "$D/libyaml-cpp.so" ] && YAML_LIBDIR="$D" && break
+  done
+  echo "yaml-cpp libdir: $YAML_LIBDIR"
+
+  # ---- Artemis (master branch) ----
+  git clone --branch master --depth 1 \
+    https://github.com/artemis-dev/artemis.git "$BUILDROOT/artemis"
+
+  # -Wno-error=return-type: artemis's TTreeProjComponent.h declares Clone() with
+  # an empty body ({;}) -- a non-void function with no return statement. ROOT's
+  # dictionary generator (cling, clang-based) flags this as -Werror=return-type
+  # and fails the build, so downgrade it to a warning.
+  # --no-as-needed: with the default --as-needed, ld drops the DT_NEEDED entry
+  # for yaml-cpp from libraries that have no direct symbol reference at link time,
+  # which later causes undefined symbol errors when artemis plugins are loaded
+  cmake -S "$BUILDROOT/artemis" -B "$BUILDROOT/artemis-build" -G Ninja \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_INSTALL_PREFIX=/opt/artemis \
+    -Dyaml-cpp_DIR="$YAML_CMAKE_DIR" \
+    -DCMAKE_PREFIX_PATH="/usr/local" \
+    -DCMAKE_CXX_FLAGS="-Wno-error=return-type" \
+    -DCMAKE_SHARED_LINKER_FLAGS="-Wl,--no-as-needed -L$YAML_LIBDIR -lyaml-cpp -Wl,-rpath,$YAML_LIBDIR" \
+    -DCMAKE_MODULE_LINKER_FLAGS="-Wl,--no-as-needed -L$YAML_LIBDIR -lyaml-cpp -Wl,-rpath,$YAML_LIBDIR" \
+    -DCMAKE_EXE_LINKER_FLAGS="-Wl,--no-as-needed -L$YAML_LIBDIR -lyaml-cpp -Wl,-rpath,$YAML_LIBDIR"
+  cmake --build "$BUILDROOT/artemis-build" -j"$(nproc)"
+  cmake --install "$BUILDROOT/artemis-build"
+
+  rm -rf "$BUILDROOT"
+
+%test
+  test -x /opt/artemis/bin/artemis
+  echo "artemis binary found: OK"
+
+%runscript
+  exec /bin/bash -l "$@"
+
+%help
+  Artemis (master branch) + ROOT 6.34.00 on Ubuntu 24.04
+
+  Build:
+    apptainer build --fakeroot artemis.sif artemis.def
+
+  Interactive shell:
+    apptainer shell artemis.sif
+
+  Run artemis directly:
+    apptainer exec artemis.sif artemis
+
+  With X11 forwarding (SSH -X or VNC):
+    apptainer shell --bind /tmp/.X11-unix artemis.sif

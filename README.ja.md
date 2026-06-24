@@ -1,5 +1,8 @@
 # Artemis Apptainer
 
+[![English](https://img.shields.io/badge/lang-English-lightgrey.svg)](README.md)
+[![日本語](https://img.shields.io/badge/lang-日本語-blue.svg)](README.ja.md)
+
 [Artemis](https://github.com/artemis-dev/artemis) を動かすための [Apptainer](https://apptainer.org/) コンテナ環境。
 
 ## ソフトウェアバージョン

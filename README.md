@@ -1,5 +1,8 @@
 # Artemis Apptainer
 
+[![English](https://img.shields.io/badge/lang-English-blue.svg)](README.md)
+[![日本語](https://img.shields.io/badge/lang-日本語-lightgrey.svg)](README.ja.md)
+
 [Apptainer](https://apptainer.org/) container environment for running [Artemis](https://github.com/artemis-dev/artemis).
 
 ## Software versions

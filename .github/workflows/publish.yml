@@ -1,9 +1,9 @@
 name: Build and publish image
 
-# NOTE: push-on-tag is intentionally disabled while the pipeline is being
-# brought up. Run manually via workflow_dispatch; re-enable the push trigger
-# once smoke.yml has validated the ghcr plumbing.
 on:
+  push:
+    tags:
+      - 'root*'
   workflow_dispatch:
     inputs:
       tag:

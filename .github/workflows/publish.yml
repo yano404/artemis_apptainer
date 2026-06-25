@@ -1,0 +1,77 @@
+name: Build and publish image
+
+# NOTE: push-on-tag is intentionally disabled while the pipeline is being
+# brought up. Run manually via workflow_dispatch; re-enable the push trigger
+# once smoke.yml has validated the ghcr plumbing.
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing git tag to build and publish (e.g. root6.34.00-artemis2025.10.31-966a83f)'
+        required: true
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Resolve git tag
+        id: ref
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "tag=${{ github.event.inputs.tag }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout the tagged revision
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.ref.outputs.tag }}
+
+      - name: Set up Apptainer
+        uses: eWaterCycle/setup-apptainer@v2
+
+      - name: Build image
+        run: |
+          APPTAINER="$(command -v apptainer)"
+          sudo "$APPTAINER" build artemis.sif artemis.def
+          sudo chown "$(id -u):$(id -g)" artemis.sif
+
+      - name: Compute image tags
+        id: tags
+        run: |
+          GIT_TAG='${{ steps.ref.outputs.tag }}'
+          SERIES="${GIT_TAG%%-artemis*}"   # e.g. root6.34.00
+          IMAGE="ghcr.io/${GITHUB_REPOSITORY,,}"
+          echo "image=${IMAGE}"       >> "$GITHUB_OUTPUT"
+          echo "immutable=${GIT_TAG}" >> "$GITHUB_OUTPUT"
+          echo "series=${SERIES}"     >> "$GITHUB_OUTPUT"
+
+      - name: Log in to ghcr.io
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" \
+            | apptainer registry login --username "${{ github.actor }}" --password-stdin oras://ghcr.io
+
+      - name: Push image (immutable + series + latest)
+        run: |
+          IMAGE='${{ steps.tags.outputs.image }}'
+          apptainer push artemis.sif "oras://${IMAGE}:${{ steps.tags.outputs.immutable }}"
+          apptainer push artemis.sif "oras://${IMAGE}:${{ steps.tags.outputs.series }}"
+          apptainer push artemis.sif "oras://${IMAGE}:latest"
+
+      - name: Summary
+        run: |
+          IMAGE='${{ steps.tags.outputs.image }}'
+          {
+            echo "### Published image tags"
+            echo ""
+            echo "- \`${IMAGE}:${{ steps.tags.outputs.immutable }}\`"
+            echo "- \`${IMAGE}:${{ steps.tags.outputs.series }}\`"
+            echo "- \`${IMAGE}:latest\`"
+            echo ""
+            echo "Pull with: \`apptainer pull oras://${IMAGE}:${{ steps.tags.outputs.immutable }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"

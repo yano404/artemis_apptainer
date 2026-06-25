@@ -8,8 +8,10 @@
 ## ソフトウェアバージョン
 
 - ROOT: 6.34.00 (Ubuntu 24.04)
-- Artemis: master ブランチ
+- Artemis: commit [`966a83f`](https://github.com/artemis-dev/artemis/commit/966a83f93869254a17263b1db64186d55b15f048) (2025-10-31)
 - yaml-cpp: 0.7.0
+
+固定した正確なバージョンはイメージのラベルにも記録されています（`apptainer inspect artemis.sif`）。
 
 ## イメージのビルド
 

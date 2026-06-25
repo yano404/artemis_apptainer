@@ -111,7 +111,8 @@ From: rootproject/root:6.34.00-ubuntu24.04
   exec /bin/bash -l "$@"
 
 %help
-  Artemis (master branch) + ROOT 6.34.00 on Ubuntu 24.04
+  Artemis (commit 966a83f, 2025-10-31) + ROOT 6.34.00 on Ubuntu 24.04
+  Run `apptainer inspect artemis.sif` to see the exact pinned versions.
 
   Build:
     apptainer build --fakeroot artemis.sif artemis.def

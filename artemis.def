@@ -2,7 +2,11 @@ Bootstrap: docker
 From: rootproject/root:6.34.00-ubuntu24.04
 
 %labels
-  Description "Artemis (master) on ROOT 6.34.00 / Ubuntu 24.04"
+  Description "Artemis on ROOT 6.34.00 / Ubuntu 24.04"
+  ROOT_Version 6.34.00
+  Artemis_Commit 966a83f93869254a17263b1db64186d55b15f048
+  Artemis_Date 2025-10-31
+  yaml_cpp_Version 0.7.0
 
 %environment
   # ROOTSYS and PATH come from the base image's Docker ENV, and ROOT's libraries
@@ -67,9 +71,16 @@ From: rootproject/root:6.34.00-ubuntu24.04
   done
   echo "yaml-cpp libdir: $YAML_LIBDIR"
 
-  # ---- Artemis (master branch) ----
-  git clone --branch master --depth 1 \
-    https://github.com/artemis-dev/artemis.git "$BUILDROOT/artemis"
+  # ---- Artemis (pinned commit) ----
+  # master @ 2025-10-31 (commit 966a83f). To bump, update ARTEMIS_REF and the
+  # Artemis_Commit/Artemis_Date labels above; the published image tag
+  # root<ROOT>-artemis<date>-<short-sha> mirrors this pin.
+  ARTEMIS_REF=966a83f93869254a17263b1db64186d55b15f048
+  mkdir -p "$BUILDROOT/artemis"
+  git -C "$BUILDROOT/artemis" init -q
+  git -C "$BUILDROOT/artemis" remote add origin https://github.com/artemis-dev/artemis.git
+  git -C "$BUILDROOT/artemis" fetch --depth 1 origin "$ARTEMIS_REF"
+  git -C "$BUILDROOT/artemis" checkout -q FETCH_HEAD
 
   # -Wno-error=return-type: artemis's TTreeProjComponent.h declares Clone() with
   # an empty body ({;}) -- a non-void function with no return statement. ROOT's

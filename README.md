@@ -2,6 +2,7 @@
 
 [![English](https://img.shields.io/badge/lang-English-blue.svg)](README.md)
 [![日本語](https://img.shields.io/badge/lang-日本語-lightgrey.svg)](README.ja.md)
+[![ghcr.io](https://img.shields.io/badge/ghcr.io-artemis__apptainer-2496ED?logo=github)](https://github.com/yano404/artemis_apptainer/pkgs/container/artemis_apptainer)
 
 [Apptainer](https://apptainer.org/) container environment for running [Artemis](https://github.com/artemis-dev/artemis).
 
@@ -13,7 +14,23 @@
 
 The exact pinned versions are also recorded as image labels (`apptainer inspect artemis.sif`).
 
+## Pull the pre-built image
+
+Pre-built images are published to the GitHub Container Registry:
+
+```bash
+apptainer pull oras://ghcr.io/yano404/artemis_apptainer:latest
+```
+
+| Tag | Meaning |
+|---|---|
+| `latest` | Newest build |
+| `root6.34.00` | Newest build on the ROOT 6.34.00 line |
+| `root6.34.00-artemis2025.10.31-966a83f` | Immutable, fully pinned build |
+
 ## Building the image
+
+If you prefer to build it yourself instead of pulling:
 
 ```bash
 apptainer build --fakeroot artemis.sif artemis.def

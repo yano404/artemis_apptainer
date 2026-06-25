@@ -2,6 +2,7 @@
 
 [![English](https://img.shields.io/badge/lang-English-lightgrey.svg)](README.md)
 [![日本語](https://img.shields.io/badge/lang-日本語-blue.svg)](README.ja.md)
+[![ghcr.io](https://img.shields.io/badge/ghcr.io-artemis__apptainer-2496ED?logo=github)](https://github.com/yano404/artemis_apptainer/pkgs/container/artemis_apptainer)
 
 [Artemis](https://github.com/artemis-dev/artemis) を動かすための [Apptainer](https://apptainer.org/) コンテナ環境。
 
@@ -13,7 +14,23 @@
 
 固定した正確なバージョンはイメージのラベルにも記録されています（`apptainer inspect artemis.sif`）。
 
+## ビルド済みイメージの取得
+
+ビルド済みイメージを GitHub Container Registry で配布しています。
+
+```bash
+apptainer pull oras://ghcr.io/yano404/artemis_apptainer:latest
+```
+
+| タグ | 意味 |
+|---|---|
+| `latest` | 全体の最新ビルド |
+| `root6.34.00` | ROOT 6.34.00 系列の最新ビルド |
+| `root6.34.00-artemis2025.10.31-966a83f` | 完全固定の不変ビルド（再現用） |
+
 ## イメージのビルド
+
+自分でビルドする場合は以下のとおりです。
 
 ```bash
 apptainer build --fakeroot artemis.sif artemis.def

@@ -53,17 +53,6 @@ From: rootproject/root:6.34.00-ubuntu24.04
   cmake --install "$BUILDROOT/yaml-cpp-build"
   ldconfig
 
-  # Locate the cmake config dir (may be lib/cmake, share/cmake, or lib64/cmake
-  # depending on the build/platform)
-  YAML_CMAKE_DIR=""
-  for D in \
-    /usr/local/lib/cmake/yaml-cpp \
-    /usr/local/share/cmake/yaml-cpp \
-    /usr/local/lib64/cmake/yaml-cpp; do
-    [ -d "$D" ] && YAML_CMAKE_DIR="$D" && break
-  done
-  echo "yaml-cpp cmake dir: $YAML_CMAKE_DIR"
-
   # Locate the dir actually containing the shared library (lib vs lib64)
   YAML_LIBDIR=/usr/local/lib
   for D in /usr/local/lib /usr/local/lib64; do
@@ -82,19 +71,16 @@ From: rootproject/root:6.34.00-ubuntu24.04
   git -C "$BUILDROOT/artemis" fetch --depth 1 origin "$ARTEMIS_REF"
   git -C "$BUILDROOT/artemis" checkout -q FETCH_HEAD
 
-  # -Wno-error=return-type: artemis's TTreeProjComponent.h declares Clone() with
-  # an empty body ({;}) -- a non-void function with no return statement. ROOT's
-  # dictionary generator (cling, clang-based) flags this as -Werror=return-type
-  # and fails the build, so downgrade it to a warning.
   # --no-as-needed: with the default --as-needed, ld drops the DT_NEEDED entry
-  # for yaml-cpp from libraries that have no direct symbol reference at link time,
-  # which later causes undefined symbol errors when artemis plugins are loaded
+  # for yaml-cpp from libraries that reference it only transitively. This breaks
+  # linking the artemis executable (libcatloop.so uses yaml-cpp, but the exe does
+  # not reference it directly) and, at runtime, plugin loading. Forcing the
+  # explicit -lyaml-cpp with --no-as-needed resolves both. yaml-cpp itself is
+  # found via its /usr/local install (a default CMake prefix), so no
+  # -Dyaml-cpp_DIR / -DCMAKE_PREFIX_PATH hint is needed.
   cmake -S "$BUILDROOT/artemis" -B "$BUILDROOT/artemis-build" -G Ninja \
     -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_INSTALL_PREFIX=/opt/artemis \
-    -Dyaml-cpp_DIR="$YAML_CMAKE_DIR" \
-    -DCMAKE_PREFIX_PATH="/usr/local" \
-    -DCMAKE_CXX_FLAGS="-Wno-error=return-type" \
     -DCMAKE_SHARED_LINKER_FLAGS="-Wl,--no-as-needed -L$YAML_LIBDIR -lyaml-cpp -Wl,-rpath,$YAML_LIBDIR" \
     -DCMAKE_MODULE_LINKER_FLAGS="-Wl,--no-as-needed -L$YAML_LIBDIR -lyaml-cpp -Wl,-rpath,$YAML_LIBDIR" \
     -DCMAKE_EXE_LINKER_FLAGS="-Wl,--no-as-needed -L$YAML_LIBDIR -lyaml-cpp -Wl,-rpath,$YAML_LIBDIR"

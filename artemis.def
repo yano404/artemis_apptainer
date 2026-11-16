@@ -1,12 +1,25 @@
 Bootstrap: docker
-From: rootproject/root:6.34.00-ubuntu24.04
+From: rootproject/root:{{ ROOT_TAG }}
+
+%arguments
+  # Defaults reproduce the pinned image. Override any of these at build time, e.g.
+  #   apptainer build --fakeroot \
+  #     --build-arg ROOT_TAG=6.36.00-ubuntu24.04 \
+  #     --build-arg ROOT_VERSION=6.36.00 \
+  #     --build-arg ARTEMIS_REF=<sha> --build-arg ARTEMIS_DATE=<yyyy-mm-dd> \
+  #     artemis.sif artemis.def
+  ROOT_TAG=6.34.00-ubuntu24.04
+  ROOT_VERSION=6.34.00
+  YAML_CPP_VERSION=0.7.0
+  ARTEMIS_REF=966a83f93869254a17263b1db64186d55b15f048
+  ARTEMIS_DATE=2025-10-31
 
 %labels
-  Description "Artemis on ROOT 6.34.00 / Ubuntu 24.04"
-  ROOT_Version 6.34.00
-  Artemis_Commit 966a83f93869254a17263b1db64186d55b15f048
-  Artemis_Date 2025-10-31
-  yaml_cpp_Version 0.7.0
+  Description "Artemis on ROOT {{ ROOT_VERSION }} / Ubuntu 24.04"
+  ROOT_Version {{ ROOT_VERSION }}
+  Artemis_Commit {{ ARTEMIS_REF }}
+  Artemis_Date {{ ARTEMIS_DATE }}
+  yaml_cpp_Version {{ YAML_CPP_VERSION }}
 
 %environment
   # ROOTSYS and PATH come from the base image's Docker ENV, and ROOT's libraries
@@ -40,8 +53,8 @@ From: rootproject/root:6.34.00-ubuntu24.04
   BUILDROOT=/opt/build
   mkdir -p "$BUILDROOT"
 
-  # ---- yaml-cpp 0.7.0 (shared library) ----
-  git clone --branch yaml-cpp-0.7.0 --depth 1 \
+  # ---- yaml-cpp (shared library) ----
+  git clone --branch yaml-cpp-{{ YAML_CPP_VERSION }} --depth 1 \
     https://github.com/jbeder/yaml-cpp.git "$BUILDROOT/yaml-cpp"
 
   cmake -S "$BUILDROOT/yaml-cpp" -B "$BUILDROOT/yaml-cpp-build" -G Ninja \
@@ -61,10 +74,11 @@ From: rootproject/root:6.34.00-ubuntu24.04
   echo "yaml-cpp libdir: $YAML_LIBDIR"
 
   # ---- Artemis (pinned commit) ----
-  # master @ 2025-10-31 (commit 966a83f). To bump, update ARTEMIS_REF and the
-  # Artemis_Commit/Artemis_Date labels above; the published image tag
-  # root<ROOT>-artemis<date>-<short-sha> mirrors this pin.
-  ARTEMIS_REF=966a83f93869254a17263b1db64186d55b15f048
+  # Pin is set via the ARTEMIS_REF build-arg (default in %arguments). To bump,
+  # pass --build-arg ARTEMIS_REF=<sha> --build-arg ARTEMIS_DATE=<date> (or edit
+  # the defaults); the published image tag root<ROOT>-artemis<date>-<short-sha>
+  # mirrors this pin.
+  ARTEMIS_REF={{ ARTEMIS_REF }}
   mkdir -p "$BUILDROOT/artemis"
   git -C "$BUILDROOT/artemis" init -q
   git -C "$BUILDROOT/artemis" remote add origin https://github.com/artemis-dev/artemis.git
@@ -97,11 +111,18 @@ From: rootproject/root:6.34.00-ubuntu24.04
   exec /bin/bash -l "$@"
 
 %help
-  Artemis (commit 966a83f, 2025-10-31) + ROOT 6.34.00 on Ubuntu 24.04
+  Artemis (commit {{ ARTEMIS_REF }}, {{ ARTEMIS_DATE }}) + ROOT {{ ROOT_VERSION }} on Ubuntu 24.04
   Run `apptainer inspect artemis.sif` to see the exact pinned versions.
 
-  Build:
+  Build (defaults reproduce the pinned image):
     apptainer build --fakeroot artemis.sif artemis.def
+
+  Build a different ROOT / Artemis without editing this file:
+    apptainer build --fakeroot \
+      --build-arg ROOT_TAG=6.36.00-ubuntu24.04 \
+      --build-arg ROOT_VERSION=6.36.00 \
+      --build-arg ARTEMIS_REF=<sha> --build-arg ARTEMIS_DATE=<yyyy-mm-dd> \
+      artemis.sif artemis.def
 
   Interactive shell:
     apptainer shell artemis.sif

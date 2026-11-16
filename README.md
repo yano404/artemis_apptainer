@@ -36,7 +36,20 @@ If you prefer to build it yourself instead of pulling:
 apptainer build --fakeroot artemis.sif artemis.def
 ```
 
-The build takes several tens of minutes.
+The build takes several tens of minutes. The defaults in the `%arguments`
+section of `artemis.def` reproduce the pinned image.
+
+To build another ROOT or Artemis version without editing `artemis.def`, use
+`build.sh`. It reads its defaults from `artemis.def`, names the output after
+the project tag (`artemis-root<ROOT>-artemis<date>-<short-sha>.sif`), and
+prints the `git tag` command to publish that exact pin:
+
+```bash
+./build.sh                                   # pinned defaults
+./build.sh --root-tag 6.36.00-ubuntu24.04 --root-version 6.36.00 \
+           --artemis-ref <sha> --artemis-date <yyyy-mm-dd>
+./build.sh --dry-run                         # show the resolved values only
+```
 
 ## Usage
 

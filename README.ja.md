@@ -36,7 +36,16 @@ apptainer pull oras://ghcr.io/yano404/artemis_apptainer:latest
 apptainer build --fakeroot artemis.sif artemis.def
 ```
 
-ビルドには数十分かかります。
+ビルドには数十分かかります。`artemis.def` の `%arguments` にある既定値で、固定した版のイメージが再現されます。
+
+`artemis.def` を書き換えずに別の ROOT や Artemis の版でビルドするには `build.sh` を使います。既定値は `artemis.def` から読み込み、出力ファイル名をプロジェクトのタグ（`artemis-root<ROOT>-artemis<日付>-<短縮SHA>.sif`）に合わせ、その版を公開するための `git tag` コマンドを表示します。
+
+```bash
+./build.sh                                   # 固定した既定値でビルド
+./build.sh --root-tag 6.36.00-ubuntu24.04 --root-version 6.36.00 \
+           --artemis-ref <sha> --artemis-date <yyyy-mm-dd>
+./build.sh --dry-run                         # 解決した値を表示するだけ
+```
 
 ## 使い方
 
